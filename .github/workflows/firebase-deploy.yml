@@ -1,0 +1,60 @@
+name: firebase deploy
+
+on:
+  workflow_call:
+    inputs:
+      workload-identity-project-number:
+        description: the GCP project number used for Workload Identity Federation
+        required: true
+        type: string
+      environment:
+        description: The firebase project environment used for the deployment
+        required: true
+        type: string
+      gcp-service-account:
+        description: the email address of the service account
+        required: true
+        type: string
+      working-directory:
+        description: The working directory of the firebase project
+        required: false
+        type: string
+        default: functions
+
+concurrency:
+  group: firebase-deploy-${{ inputs.environment }}
+
+jobs:
+  deploy:
+    name: Firebase deploy to ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version-file: .tool-versions
+          cache: npm
+          cache-dependency-path: ${{ inputs.working-directory }}/package-lock.json
+
+      - name: Install Dependencies
+        run: npm ci
+        working-directory: ${{ inputs.working-directory }}
+
+      - uses: google-github-actions/auth@v1
+        with:
+          workload_identity_provider: projects/${{ inputs.workload-identity-project-number }}/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+          service_account: ${{ inputs.gcp-service-account }}
+
+      - name: Configure firebase environment
+        run: npx firebase use ${{ inputs.environment }}
+        working-directory: ${{ inputs.working-directory }}
+
+      - name: Firebase deploy
+        run: npx firebase deploy --force
+        working-directory: ${{ inputs.working-directory }}
+

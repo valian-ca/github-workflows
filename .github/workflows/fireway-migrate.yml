@@ -1,0 +1,117 @@
+name: fireway migrate
+
+on:
+  workflow_call:
+    inputs:
+      workload-identity-project-number:
+        description: the GCP project number used for Workload Identity Federation
+        required: true
+        type: string
+      gcp-project-id:
+        description: The firebase project environment used for the deployment
+        required: true
+        type: string
+      gcp-service-account:
+        description: the email address of the service account
+        required: true
+        type: string
+      working-directory:
+        description: The working directory of the firebase project
+        required: false
+        type: string
+        default: functions
+      dry-run:
+        description: run migrations in dry-run mode
+        type: boolean
+        required: false
+        default: false
+
+concurrency:
+  group: fireway-migrate-${{ inputs.gcp-project-id }}
+
+jobs:
+  fireway:
+    name: fireway
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version-file: .tool-versions
+          cache: npm
+          cache-dependency-path: ${{ inputs.working-directory }}/package-lock.json
+      - name: Install Dependencies
+        run: npm ci
+        working-directory: ${{ inputs.working-directory }}
+
+      - uses: google-github-actions/auth@v1
+        with:
+          workload_identity_provider: projects/${{ inputs.workload-identity-project-number }}/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+          service_account: ${{ inputs.gcp-service-account }}
+
+      - uses: google-github-actions/setup-gcloud@v1
+        with:
+          project_id: ${{ inputs.gcp-project-id }}
+
+      - name: Create GOOGLE_APPLICATION_CREDENTIALS
+        run: |
+          echo "LOGGING IN TO GCLOUD USING the external_account credentials"
+          gcloud auth login --cred-file=${GOOGLE_GHA_CREDS_PATH}
+          gcloud config set project "${{ inputs.gcp-project-id }}"
+
+          # Create a temporary key to use during bootstrap (need this because firebase admin sdk can't use external_account workload identity federation)
+          # https://github.com/firebase/firebase-admin-node/issues/1377
+          echo "UPLOADING A SERVICE ACCOUNT KEY for ${{ inputs.gcp-service-account }}, REMOVE THIS ONCE EXPIRED"
+          openssl req -x509 -nodes -newkey rsa:2048 -days 1 -keyout /tmp/private_key.pem -out /tmp/public_key.pem -subj "/CN=unused"
+          gcloud iam service-accounts keys upload /tmp/public_key.pem --iam-account=${{ inputs.gcp-service-account }} --format json --quiet > /tmp/uploaded_key.json
+          GCLOUD_PRIVATE_KEY_NAME=$(jq -r .name /tmp/uploaded_key.json | awk -F/ '{print $NF}')
+          echo "CREATED SERVICE ACCOUNT KEY $GCLOUD_PRIVATE_KEY_NAME"
+
+          touch /tmp/service_account.json
+          chmod 0600 /tmp/service_account.json
+
+          cat << EOF > /tmp/service_account.json
+          {
+            "type": "service_account",
+            "project_id": "${{ inputs.gcp-project-id }}",
+            "private_key_id": "$GCLOUD_PRIVATE_KEY_NAME",
+            "private_key": "$(sed ':a;N;$!ba;s/\n/\\n/g' /tmp/private_key.pem)",
+            "client_email": "${{ inputs.gcp-service-account }}",
+            "client_id": "$(gcloud iam service-accounts describe ${{ inputs.gcp-service-account }} --format 'value(uniqueId)')",
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+            "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/$(echo ${{ inputs.gcp-service-account }} | sed 's/@/%40/g')"
+          }
+          EOF
+          echo "GCLOUD_PRIVATE_KEY_NAME=$GCLOUD_PRIVATE_KEY_NAME" >> $GITHUB_ENV
+          echo "GOOGLE_APPLICATION_CREDENTIALS=/tmp/service_account.json" >> $GITHUB_ENV
+
+      - name: Configure firebase environment
+        run: npx firebase use ${{ inputs.gcp-project-id }}
+        working-directory: ${{ inputs.working-directory }}
+
+      - name: Run migrations - Dry Run
+        env:
+          GCLOUD_PROJECT: ${{ inputs.gcp-project-id }}
+        if: ${{ inputs.dry-run }}
+        run: npx fireway migrate --require="ts-node/register" --dryRun
+        working-directory: ${{ inputs.working-directory }}
+
+      - name: Run migrations
+        env:
+          GCLOUD_PROJECT: ${{ inputs.gcp-project-id }}
+        if: ${{ ! inputs.dry-run }}
+        run: npx fireway migrate --require="ts-node/register"
+        working-directory: ${{ inputs.working-directory }}
+
+      - name: Cleanup GOOGLE_APPLICATION_CREDENTIALS
+        if: ${{ always() }}
+        run: |
+          echo "REMOVING SERVICE ACCOUNT KEY $GCLOUD_PRIVATE_KEY_NAME"
+          gcloud iam service-accounts keys delete ${GCLOUD_PRIVATE_KEY_NAME} --iam-account=${{ inputs.gcp-service-account }} --quiet
+

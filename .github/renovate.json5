@@ -1,0 +1,21 @@
+{
+  extends: ['config:base', 'schedule:earlyMondays', ':semanticCommits', ':semanticCommitTypeAll(chore)'],
+  labels: ['dependencies'],
+  packageRules: [
+    {
+      matchPackagePatterns: ['.*'],
+      matchManagers: ['github-actions'],
+      groupName: 'GitHub Actions Dependencies',
+    },
+    {
+      matchPackagePatterns: ['.*'],
+      matchManagers: ['npm'],
+      groupName: 'Node-based Dev Tools',
+    },
+    {
+      matchPackageNames: ['node'],
+      groupName: 'Node.js',
+      allowedVersions: '<19.0.0',
+    },
+  ],
+}

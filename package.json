@@ -1,0 +1,28 @@
+{
+  "name": "@valian/github-workflows",
+  "version": "1.0.0",
+  "private": true,
+  "description": "reusable GitHub Actions workflows",
+  "scripts": {
+    "lint:md": "markdownlint-cli2 \"**/*.md\" \"#node_modules\"",
+    "prettier": "prettier --check .",
+    "prepare": "husky install",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/valian-ca/github-workflows.git"
+  },
+  "author": "John Martel",
+  "bugs": {
+    "url": "https://github.com/valian-ca/github-workflows/issues"
+  },
+  "homepage": "https://github.com/valian-ca/github-workflows#readme",
+  "devDependencies": {
+    "@commitlint/cli": "17.6.5",
+    "@commitlint/config-conventional": "17.6.5",
+    "husky": "8.0.3",
+    "markdownlint-cli2": "0.8.1",
+    "prettier": "^3.0.0"
+  }
+}

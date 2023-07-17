@@ -43,10 +43,9 @@ jobs:
         with:
           node-version-file: .tool-versions
           cache: npm
-          cache-dependency-path: ${{ inputs.working-directory }}/package-lock.json
+          cache-dependency-path: package-lock.json
       - name: Install Dependencies
-        run: npm ci
-        working-directory: ${{ inputs.working-directory }}
+        run: npm ci --ignore-scripts
 
       - uses: google-github-actions/auth@v1
         with:

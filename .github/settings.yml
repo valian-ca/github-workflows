@@ -52,7 +52,7 @@ branches:
       required_status_checks:
         strict: false
         contexts:
-          - markdownlint lint
+          - markdown lint
           - Validate PR title
       enforce_admins: true
       required_linear_history: false

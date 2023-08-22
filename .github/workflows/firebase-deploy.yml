@@ -56,4 +56,5 @@ jobs:
       - name: Firebase deploy
         run: npx firebase deploy --force
         working-directory: ${{ inputs.working-directory }}
-
+        env:
+          ENVIRONMENT: ${{ inputs.environment }}

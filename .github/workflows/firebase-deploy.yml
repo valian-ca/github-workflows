@@ -15,6 +15,10 @@ on:
         description: the email address of the service account
         required: true
         type: string
+      pre-deploy-command:
+        description: the command to run before the firebase deploy
+        required: false
+        type: string
       working-directory:
         description: The working directory of the firebase project
         required: false
@@ -53,8 +57,11 @@ jobs:
         run: npx firebase use ${{ inputs.environment }}
         working-directory: ${{ inputs.working-directory }}
 
+      - name: Execute pre-deploy command
+        if: inputs.pre-deploy-command != ''
+        run: ${{ inputs.pre-deploy-command }}
+        working-directory: ${{ inputs.working-directory }}
+
       - name: Firebase deploy
         run: npx firebase deploy --force
         working-directory: ${{ inputs.working-directory }}
-        env:
-          ENVIRONMENT: ${{ inputs.environment }}

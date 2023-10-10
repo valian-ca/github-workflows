@@ -1,0 +1,20 @@
+name: GCP Github Auth
+description: Authenticate to GCP using Workload Identity Federation
+
+inputs:
+  workload-identity-project-number:
+    description: the GCP project number used for Workload Identity Federation
+    required: true
+  gcp-service-account:
+    description: the email address of the GCP service account
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - uses: google-github-actions/auth@v1
+      with:
+        workload_identity_provider: projects/${{ inputs.workload-identity-project-number }}/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+        service_account: ${{ inputs.gcp-service-account }}
+
+

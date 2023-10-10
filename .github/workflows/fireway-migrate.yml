@@ -47,10 +47,10 @@ jobs:
       - name: Install Dependencies
         run: npm ci --ignore-scripts
 
-      - uses: google-github-actions/auth@v1
+      - uses: valian-ca/github-workflows/.github/actions/gcp-github-auth@main
         with:
-          workload_identity_provider: projects/${{ inputs.workload-identity-project-number }}/locations/global/workloadIdentityPools/github-pool/providers/github-provider
-          service_account: ${{ inputs.gcp-service-account }}
+          workload-identity-project-number: ${{ inputs.workload-identity-project-number }}
+          gcp-service-account: ${{ inputs.gcp-service-account }}
 
       - uses: google-github-actions/setup-gcloud@v1
         with:

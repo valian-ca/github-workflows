@@ -48,7 +48,7 @@ jobs:
       - name: Install Dependencies
         run: npm ci --ignore-scripts
 
-      - uses: valian-ca/github-workflows/.github/actions/gcp-github-auth@main
+      - uses: valian-ca/github-workflows/.github/actions/gcp-github-auth@chore/gcp-github-auth
         with:
           workload-identity-project-number: ${{ inputs.workload-identity-project-number }}
           service_account: ${{ inputs.gcp-service-account }}

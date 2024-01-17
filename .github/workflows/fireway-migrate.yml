@@ -25,6 +25,10 @@ on:
         type: boolean
         required: false
         default: false
+      slack-channel-id:
+        description: Slack channel id to send alerts to
+        type: string
+        required: false
 
 concurrency:
   group: fireway-migrate-${{ inputs.gcp-project-id }}
@@ -44,8 +48,8 @@ jobs:
           node-version-file: .tool-versions
           cache: npm
           cache-dependency-path: package-lock.json
-      - name: Install Dependencies
-        run: npm ci --ignore-scripts
+      - name: install dependencies
+        run: npm ci
 
       - uses: valian-ca/github-workflows/.github/actions/gcp-github-auth@main
         with:
@@ -90,18 +94,18 @@ jobs:
           echo "GCLOUD_PRIVATE_KEY_NAME=$GCLOUD_PRIVATE_KEY_NAME" >> $GITHUB_ENV
           echo "GOOGLE_APPLICATION_CREDENTIALS=/tmp/service_account.json" >> $GITHUB_ENV
 
-      - name: Configure firebase environment
+      - name: configure firebase environment
         run: npx firebase use ${{ inputs.gcp-project-id }}
         working-directory: ${{ inputs.working-directory }}
 
-      - name: Run migrations - Dry Run
+      - name: run migrations - dry run
         env:
           GCLOUD_PROJECT: ${{ inputs.gcp-project-id }}
         if: ${{ inputs.dry-run }}
         run: npx fireway migrate --require="ts-node/register" --dryRun
         working-directory: ${{ inputs.working-directory }}
 
-      - name: Run migrations
+      - name: run migrations
         env:
           GCLOUD_PROJECT: ${{ inputs.gcp-project-id }}
         if: ${{ ! inputs.dry-run }}
@@ -114,3 +118,40 @@ jobs:
           echo "REMOVING SERVICE ACCOUNT KEY $GCLOUD_PRIVATE_KEY_NAME"
           gcloud iam service-accounts keys delete ${GCLOUD_PRIVATE_KEY_NAME} --iam-account=${{ inputs.gcp-service-account }} --quiet
 
+      - name: notify Slack of failure
+        id: slack
+        if: ${{ !success() && inputs.slack-channel-id != '' }}
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          channel-id: ${{ inputs.slack-channel-id }}
+          payload: |
+            {
+              "text": "Fireway Migration Problem (${{ job.status }})",
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "Fireway Migration Problem"
+                  }
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": ":x: ${{ inputs.github-environment }} migration ${{ job.status }}"
+                  }
+                },
+            	{
+                  "type": "context",
+                  "elements": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "${{ github.event.pull_request.html_url || github.event.head_commit.url }}"
+                    }
+                  ]
+                }
+              ]
+            }
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}

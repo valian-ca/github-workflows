@@ -1,0 +1,99 @@
+name: deploy firebase using pnpm
+
+on:
+  workflow_call:
+    inputs:
+      firebase-environment:
+        description: The firebase project environment used for the deployment
+        type: string
+        required: true
+      github-environment:
+        description: The firebase project environment used for the deployment
+        type: string
+        required: false
+      workload-identity-project-number:
+        description: the GCP project number used for Workload Identity Federation
+        type: string
+        required: true
+      gcp-service-account:
+        description: the email address of the service account
+        type: string
+        required: true
+      firebase-command:
+        description: the command to run firebase deploy
+        type: string
+        default: deploy
+      slack-channel-id:
+        description: Slack channel id to send alerts to
+        type: string
+        required: false
+
+concurrency:
+  group: deploy-firebase-${{ inputs.firebase-environment }}-${{ inputs.github-environment }}
+
+jobs:
+  deploy:
+    name: deploy to firebase ${{ inputs.firebase-environment }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.github-environment }}
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: setup pnpm
+        uses: valian-ca/github-workflows/.github/actions/setup-pnpm@main
+      - uses: valian-ca/github-workflows/.github/actions/gcp-github-auth@main
+        with:
+          workload-identity-project-number: ${{ inputs.workload-identity-project-number }}
+          gcp-service-account: ${{ inputs.gcp-service-account }}
+
+      - name: configure firebase environment
+        run: pnpm exec firebase use ${{ inputs.firebase-environment }}
+
+      - name: firebase ${{ inputs.firebase-command }}
+        id: firebase
+        run: pnpm exec firebase ${{ inputs.firebase-command }}
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+
+      - name: notify slack of failure
+        id: slack
+        if: ${{ !success() && inputs.slack-channel-id != '' }}
+        uses: slackapi/slack-github-action@v1.25.0
+        with:
+          channel-id: ${{ inputs.slack-channel-id }}
+          payload: |
+            {
+              "text": "Firebase Deployment Problem (${{ job.status }})",
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "Firebase Deployment Problem"
+                  }
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": ":x: ${{ inputs.github-environment }} deployment ${{ job.status }}"
+                  }
+                },
+            	{
+                  "type": "context",
+                  "elements": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "${{ github.event.pull_request.html_url || github.event.head_commit.url }}"
+                    }
+                  ]
+                }
+              ]
+            }
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}

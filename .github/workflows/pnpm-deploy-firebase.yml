@@ -27,6 +27,11 @@ on:
         description: Slack channel id to send alerts to
         type: string
         required: false
+      working-directory:
+        description: The working directory of the firebase project
+        type: string
+        required: false
+        default: '.'
 
 concurrency:
   group: deploy-firebase-${{ inputs.firebase-environment }}-${{ inputs.github-environment }}
@@ -53,10 +58,12 @@ jobs:
 
       - name: configure firebase environment
         run: pnpm exec firebase use ${{ inputs.firebase-environment }}
+        working-directory: ${{ inputs.working-directory }}
 
       - name: firebase ${{ inputs.firebase-command }}
         id: firebase
         run: pnpm exec firebase ${{ inputs.firebase-command }}
+        working-directory: ${{ inputs.working-directory }}
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
 

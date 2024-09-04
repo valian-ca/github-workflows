@@ -51,6 +51,9 @@ jobs:
           fetch-depth: 0
       - name: setup pnpm
         uses: valian-ca/github-workflows/.github/actions/setup-pnpm@main
+        with:
+          working-directory: ${{ inputs.working-directory }}
+
       - uses: valian-ca/github-workflows/.github/actions/gcp-github-auth@main
         with:
           workload-identity-project-number: ${{ inputs.workload-identity-project-number }}

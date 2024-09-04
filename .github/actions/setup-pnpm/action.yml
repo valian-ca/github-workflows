@@ -1,6 +1,12 @@
 name: Setup pnpm
 description: Setup pnpm
 
+inputs:
+  working-directory:
+    description: The working directory of the project
+    required: false
+    default: '.'
+
 runs:
   using: composite
   steps:
@@ -13,3 +19,4 @@ runs:
         cache: 'pnpm'
     - run: pnpm install --frozen-lockfile
       shell: sh
+      working-directory: ${{ inputs.working-directory }}

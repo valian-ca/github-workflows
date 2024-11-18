@@ -115,7 +115,7 @@ jobs:
       - name: notify Slack of failure
         id: slack
         if: ${{ !success() && inputs.slack-channel-id != '' }}
-        uses: slackapi/slack-github-action@v1.27.0
+        uses: slackapi/slack-github-action@v1.27.1
         with:
           channel-id: ${{ inputs.slack-channel-id }}
           payload: |

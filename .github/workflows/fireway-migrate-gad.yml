@@ -1,0 +1,117 @@
+name: fireway migrate using GAD
+
+on:
+  workflow_call:
+    inputs:
+      workload-identity-project-number:
+        description: the GCP project number used for Workload Identity Federation
+        required: true
+        type: string
+      gcp-project-id:
+        description: The firebase project environment used for the deployment
+        required: true
+        type: string
+      gcp-service-account:
+        description: the email address of the service account
+        required: true
+        type: string
+      working-directory:
+        description: The working directory of the firebase project
+        required: false
+        type: string
+        default: functions
+      dry-run:
+        description: run migrations in dry-run mode
+        type: boolean
+        required: false
+        default: false
+      slack-channel-id:
+        description: Slack channel id to send alerts to
+        type: string
+        required: false
+
+concurrency:
+  group: fireway-migrate-${{ inputs.gcp-project-id }}
+
+jobs:
+  fireway:
+    name: fireway
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .tool-versions
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: install dependencies
+        run: npm ci
+
+      - uses: valian-ca/github-workflows/.github/actions/gcp-github-auth@main
+        with:
+          workload-identity-project-number: ${{ inputs.workload-identity-project-number }}
+          gcp-service-account: ${{ inputs.gcp-service-account }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ inputs.gcp-project-id }}
+
+      - name: configure firebase environment
+        run: npx firebase use ${{ inputs.gcp-project-id }}
+        working-directory: ${{ inputs.working-directory }}
+
+      - name: run migrations - dry run
+        env:
+          GCLOUD_PROJECT: ${{ inputs.gcp-project-id }}
+        if: ${{ inputs.dry-run }}
+        run: npx fireway migrate --require="ts-node/register" --dryRun
+        working-directory: ${{ inputs.working-directory }}
+
+      - name: run migrations
+        env:
+          GCLOUD_PROJECT: ${{ inputs.gcp-project-id }}
+        if: ${{ ! inputs.dry-run }}
+        run: npx fireway migrate --require="ts-node/register"
+        working-directory: ${{ inputs.working-directory }}
+
+      - name: notify Slack of failure
+        id: slack
+        if: ${{ !success() && inputs.slack-channel-id != '' }}
+        uses: slackapi/slack-github-action@v2.0.0
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload: |
+            {
+              "channel": "${{ inputs.slack-channel-id }}",
+              "text": "Fireway Migration Problem (${{ job.status }})",
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "Fireway Migration Problem"
+                  }
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": ":x: ${{ inputs.github-environment }} migration ${{ job.status }}"
+                  }
+                },
+            	{
+                  "type": "context",
+                  "elements": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "${{ github.event.pull_request.html_url || github.event.head_commit.url }}"
+                    }
+                  ]
+                }
+              ]
+            }

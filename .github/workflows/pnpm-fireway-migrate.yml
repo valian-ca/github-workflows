@@ -54,40 +54,6 @@ jobs:
         with:
           project_id: ${{ inputs.gcp-project-id }}
 
-      - name: Create GOOGLE_APPLICATION_CREDENTIALS
-        run: |
-          echo "LOGGING IN TO GCLOUD USING the external_account credentials"
-          gcloud auth login --cred-file=${GOOGLE_GHA_CREDS_PATH}
-          gcloud config set project "${{ inputs.gcp-project-id }}"
-
-          # Create a temporary key to use during bootstrap (need this because firebase admin sdk can't use external_account workload identity federation)
-          # https://github.com/firebase/firebase-admin-node/issues/1377
-          echo "UPLOADING A SERVICE ACCOUNT KEY for ${{ inputs.gcp-service-account }}, REMOVE THIS ONCE EXPIRED"
-          openssl req -x509 -nodes -newkey rsa:2048 -days 1 -keyout /tmp/private_key.pem -out /tmp/public_key.pem -subj "/CN=unused"
-          gcloud iam service-accounts keys upload /tmp/public_key.pem --iam-account=${{ inputs.gcp-service-account }} --format json --quiet > /tmp/uploaded_key.json
-          GCLOUD_PRIVATE_KEY_NAME=$(jq -r .name /tmp/uploaded_key.json | awk -F/ '{print $NF}')
-          echo "CREATED SERVICE ACCOUNT KEY $GCLOUD_PRIVATE_KEY_NAME"
-
-          touch /tmp/service_account.json
-          chmod 0600 /tmp/service_account.json
-
-          cat << EOF > /tmp/service_account.json
-          {
-            "type": "service_account",
-            "project_id": "${{ inputs.gcp-project-id }}",
-            "private_key_id": "$GCLOUD_PRIVATE_KEY_NAME",
-            "private_key": "$(sed ':a;N;$!ba;s/\n/\\n/g' /tmp/private_key.pem)",
-            "client_email": "${{ inputs.gcp-service-account }}",
-            "client_id": "$(gcloud iam service-accounts describe ${{ inputs.gcp-service-account }} --format 'value(uniqueId)')",
-            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-            "token_uri": "https://oauth2.googleapis.com/token",
-            "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-            "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/$(echo ${{ inputs.gcp-service-account }} | sed 's/@/%40/g')"
-          }
-          EOF
-          echo "GCLOUD_PRIVATE_KEY_NAME=$GCLOUD_PRIVATE_KEY_NAME" >> $GITHUB_ENV
-          echo "GOOGLE_APPLICATION_CREDENTIALS=/tmp/service_account.json" >> $GITHUB_ENV
-
       - name: configure firebase environment
         run: pnpm exec firebase use ${{ inputs.gcp-project-id }}
         working-directory: ${{ inputs.working-directory }}
@@ -105,12 +71,6 @@ jobs:
         if: ${{ ! inputs.dry-run }}
         run: pnpm exec fireway migrate --require="ts-node/register"
         working-directory: ${{ inputs.working-directory }}
-
-      - name: Cleanup GOOGLE_APPLICATION_CREDENTIALS
-        if: ${{ always() }}
-        run: |
-          echo "REMOVING SERVICE ACCOUNT KEY $GCLOUD_PRIVATE_KEY_NAME"
-          gcloud iam service-accounts keys delete ${GCLOUD_PRIVATE_KEY_NAME} --iam-account=${{ inputs.gcp-service-account }} --quiet
 
       - name: notify Slack of failure
         id: slack

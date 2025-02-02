@@ -10,13 +10,15 @@ inputs:
 runs:
   using: composite
   steps:
-    - run: corepack enable
-      shell: sh
     - name: Setup node
       uses: actions/setup-node@v4
       with:
         node-version-file: .tool-versions
         cache: 'pnpm'
+    - run: npm install -g corepack@0.31.0
+      shell: sh
+    - run: corepack enable
+      shell: sh
     - run: pnpm install --frozen-lockfile
       shell: sh
       working-directory: ${{ inputs.working-directory }}

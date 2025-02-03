@@ -19,8 +19,8 @@
   },
   "homepage": "https://github.com/valian-ca/github-workflows#readme",
   "devDependencies": {
-    "@commitlint/cli": "19.6.1",
-    "@commitlint/config-conventional": "19.6.0",
+    "@commitlint/cli": "19.7.1",
+    "@commitlint/config-conventional": "19.7.1",
     "husky": "9.1.7",
     "markdownlint-cli2": "0.17.2",
     "prettier": "^3.0.0"

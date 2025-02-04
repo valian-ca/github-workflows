@@ -10,10 +10,11 @@ inputs:
 runs:
   using: composite
   steps:
-    - run: npm install -g corepack@0.31.0
-      shell: sh
-    - run: corepack enable
-      shell: sh
+    - name: Install pnpm
+      uses: pnpm/action-setup@v4
+      with:
+        run_install: false
+
     - name: Setup node
       uses: actions/setup-node@v4
       with:

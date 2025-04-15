@@ -69,6 +69,7 @@ jobs:
         working-directory: ${{ inputs.working-directory }}
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          NODE_OPTIONS: --max_old_space_size=4096
 
       - name: notify slack of failure
         id: slack

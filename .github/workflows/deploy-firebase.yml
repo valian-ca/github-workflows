@@ -66,6 +66,7 @@ jobs:
         run: npx firebase ${{ inputs.firebase-command }}
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          NODE_OPTIONS: --max_old_space_size=4096
 
       - name: write firebase output step summary
         run: |

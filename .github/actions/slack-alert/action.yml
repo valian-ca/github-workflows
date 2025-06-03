@@ -1,0 +1,66 @@
+name: Slack Alert
+description: Send a Slack alert message
+
+inputs:
+  message:
+    description: The message to send to Slack
+    required: true
+  mrkdwn:
+    description: The markdown message to send to Slack
+    required: false
+  token:
+    description: The Slack bot token to use for api calls
+    required: true
+  channel:
+    description: The Slack channel to send the alert to
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Alert on Slack
+      id: slack
+      uses: slackapi/slack-github-action@v2.1.0
+      with:
+        errors: true
+        method: chat.postMessage
+        token: ${{ inputs.token }}
+        payload: |
+          {
+            "channel": "${{ inputs.channel }}",
+            "text": "${{ inputs.message }}",
+            "blocks": [
+              {
+                "type": "header",
+                "text": {
+                  "type": "plain_text",
+                  "text": "${{ inputs.message }}"
+                }
+              },
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "${{ inputs.mrkdwn || inputs.message }}"
+                }
+              },
+              {
+                "type": "context",
+                "elements": [
+                  {
+                    "type": "mrkdwn",
+                    "text": "${{ github.event.pull_request.html_url || github.event.head_commit.url }}"
+                  }
+                ]
+              },
+              {
+                "type": "context",
+                "elements": [
+                  {
+                    "type": "mrkdwn",
+                    "text": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                  }
+                ]
+              }
+            ]
+          }

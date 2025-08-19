@@ -33,9 +33,6 @@ on:
         required: false
         default: '.'
 
-concurrency:
-  group: deploy-firebase-${{ inputs.firebase-environment }}-${{ inputs.github-environment }}
-
 jobs:
   deploy:
     name: deploy to firebase ${{ inputs.firebase-environment }}
@@ -44,7 +41,8 @@ jobs:
     permissions:
       contents: read
       id-token: write
-
+    concurrency:
+      group: deploy-firebase-${{ inputs.firebase-environment }}-${{ inputs.github-environment }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -74,37 +72,10 @@ jobs:
       - name: notify slack of failure
         id: slack
         if: ${{ !success() && inputs.slack-channel-id != '' }}
-        uses: slackapi/slack-github-action@v2.1.1
+        uses: valian-ca/github-workflows/.github/actions/slack-alert@main
         with:
-          method: chat.postMessage
+          message: firebase deploy ${{ inputs.firebase-environment }} error
+          mrkdwn: |
+            :warning: firebase ${{ inputs.firebase-command }} *${{ inputs.firebase-environment }}* (`${{ job.status }}`)
           token: ${{ secrets.SLACK_BOT_TOKEN }}
-          payload: |
-            {
-              "channel": "${{ inputs.slack-channel-id }}",
-              "text": "Firebase Deployment Problem (${{ job.status }})",
-              "blocks": [
-                {
-                  "type": "header",
-                  "text": {
-                    "type": "plain_text",
-                    "text": "Firebase Deployment Problem"
-                  }
-                },
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": ":x: ${{ inputs.github-environment }} deployment ${{ job.status }}"
-                  }
-                },
-            	{
-                  "type": "context",
-                  "elements": [
-                    {
-                      "type": "mrkdwn",
-                      "text": "${{ github.event.pull_request.html_url || github.event.head_commit.url }}"
-                    }
-                  ]
-                }
-              ]
-            }
+          channel: ${{ inputs.slack-channel-id }}

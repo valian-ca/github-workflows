@@ -30,8 +30,7 @@ on:
         type: string
         required: false
 
-concurrency:
-  group: fireway-migrate-${{ inputs.gcp-project-id }}
+
 
 jobs:
   fireway:
@@ -40,7 +39,8 @@ jobs:
     permissions:
       contents: read
       id-token: write
-
+    concurrency:
+      group: fireway-migrate-${{ inputs.gcp-project-id }}
     steps:
       - uses: actions/checkout@v5
       - name: setup pnpm
@@ -75,37 +75,10 @@ jobs:
       - name: notify Slack of failure
         id: slack
         if: ${{ !success() && inputs.slack-channel-id != '' }}
-        uses: slackapi/slack-github-action@v2.1.1
+        uses: valian-ca/github-workflows/.github/actions/slack-alert@main
         with:
-          method: chat.postMessage
+          message: fireway migrate ${{ inputs.gcp-project-id }} error
+          mrkdwn: |
+            :warning: fireway migrate *${{ inputs.gcp-project-id }}* (`${{ job.status }}`)
           token: ${{ secrets.SLACK_BOT_TOKEN }}
-          payload: |
-            {
-              "channel": "${{ inputs.slack-channel-id }}",
-              "text": "Fireway Migration Problem (${{ job.status }})",
-              "blocks": [
-                {
-                  "type": "header",
-                  "text": {
-                    "type": "plain_text",
-                    "text": "Fireway Migration Problem"
-                  }
-                },
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": ":x: ${{ inputs.github-environment }} migration ${{ job.status }}"
-                  }
-                },
-            	{
-                  "type": "context",
-                  "elements": [
-                    {
-                      "type": "mrkdwn",
-                      "text": "${{ github.event.pull_request.html_url || github.event.head_commit.url }}"
-                    }
-                  ]
-                }
-              ]
-            }
+          channel: ${{ inputs.slack-channel-id }}

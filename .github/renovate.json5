@@ -1,21 +1,21 @@
 {
-  extends: ['config:base', 'schedule:earlyMondays', ':semanticCommits', ':semanticCommitTypeAll(chore)'],
-  labels: ['dependencies'],
+  extends: ["config:recommended", "schedule:earlyMondays", ":semanticCommits", ":semanticCommitTypeAll(chore)"],
+  labels: ["dependencies"],
   packageRules: [
     {
-      matchPackagePatterns: ['.*'],
-      matchManagers: ['github-actions'],
-      groupName: 'GitHub Actions Dependencies',
+      matchManagers: ["github-actions"],
+      groupName: "GitHub Actions Dependencies",
+      matchPackageNames: ["/.*/"],
     },
     {
-      matchPackagePatterns: ['.*'],
-      matchManagers: ['npm'],
-      groupName: 'Node-based Dev Tools',
+      matchManagers: ["npm"],
+      groupName: "Node-based Dev Tools",
+      matchPackageNames: ["/.*/"],
     },
     {
-      matchPackageNames: ['node'],
-      groupName: 'Node.js',
-      allowedVersions: '<21.0.0',
+      matchPackageNames: ["node"],
+      groupName: "Node.js",
+      allowedVersions: "<21.0.0",
     },
   ],
 }

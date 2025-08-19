@@ -43,6 +43,7 @@ jobs:
       id-token: write
     concurrency:
       group: deploy-firebase-${{ inputs.firebase-environment }}-${{ inputs.github-environment }}
+      cancel-in-progress: true
     steps:
       - uses: actions/checkout@v5
         with:

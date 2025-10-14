@@ -50,7 +50,7 @@ jobs:
           workload-identity-project-number: ${{ inputs.workload-identity-project-number }}
           gcp-service-account: ${{ inputs.gcp-service-account }}
 
-      - uses: google-github-actions/setup-gcloud@v2
+      - uses: google-github-actions/setup-gcloud@v3
         with:
           project_id: ${{ inputs.gcp-project-id }}
 

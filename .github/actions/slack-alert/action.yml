@@ -18,6 +18,73 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Build Slack payload
+      id: build-payload
+      shell: bash
+      run: |
+        # Build blocks array conditionally
+        PR_URL="${{ github.event.pull_request.html_url }}"
+        COMMIT_URL="${{ github.event.head_commit.url }}"
+
+        # Start building the blocks array
+        BLOCKS='[
+          {
+            "type": "header",
+            "text": {
+              "type": "plain_text",
+              "text": "${{ inputs.message }}"
+            }
+          },
+          {
+            "type": "section",
+            "text": {
+              "type": "mrkdwn",
+              "text": "${{ inputs.mrkdwn || inputs.message }}"
+            }
+          }'
+
+        # Add PR/commit context block if URL exists
+        if [[ -n "$PR_URL" || -n "$COMMIT_URL" ]]; then
+          BLOCKS="$BLOCKS,
+          {
+            \"type\": \"context\",
+            \"elements\": [
+              {
+                \"type\": \"mrkdwn\",
+                \"text\": \"${PR_URL:-$COMMIT_URL}\"
+              }
+            ]
+          }"
+        fi
+
+        # Add workflow run context block (always included)
+        BLOCKS="$BLOCKS,
+          {
+            \"type\": \"context\",
+            \"elements\": [
+              {
+                \"type\": \"mrkdwn\",
+                \"text\": \"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"
+              }
+            ]
+          }
+        ]"
+
+        # Build complete payload
+        PAYLOAD=$(cat <<EOF
+        {
+          "channel": "${{ inputs.channel }}",
+          "text": "${{ inputs.message }}",
+          "blocks": $BLOCKS
+        }
+        EOF
+        )
+
+        # Output payload for next step
+        echo "payload<<PAYLOAD_EOF" >> $GITHUB_OUTPUT
+        echo "$PAYLOAD" >> $GITHUB_OUTPUT
+        echo "PAYLOAD_EOF" >> $GITHUB_OUTPUT
+
     - name: Alert on Slack
       id: slack
       uses: slackapi/slack-github-action@v2.1.1
@@ -25,42 +92,4 @@ runs:
         errors: true
         method: chat.postMessage
         token: ${{ inputs.token }}
-        payload: |
-          {
-            "channel": "${{ inputs.channel }}",
-            "text": "${{ inputs.message }}",
-            "blocks": [
-              {
-                "type": "header",
-                "text": {
-                  "type": "plain_text",
-                  "text": "${{ inputs.message }}"
-                }
-              },
-              {
-                "type": "section",
-                "text": {
-                  "type": "mrkdwn",
-                  "text": "${{ inputs.mrkdwn || inputs.message }}"
-                }
-              },
-              {
-                "type": "context",
-                "elements": [
-                  {
-                    "type": "mrkdwn",
-                    "text": "${{ github.event.pull_request.html_url || github.event.head_commit.url }}"
-                  }
-                ]
-              },
-              {
-                "type": "context",
-                "elements": [
-                  {
-                    "type": "mrkdwn",
-                    "text": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-                  }
-                ]
-              }
-            ]
-          }
+        payload: ${{ steps.build-payload.outputs.payload }}

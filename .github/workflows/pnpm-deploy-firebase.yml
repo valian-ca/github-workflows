@@ -45,7 +45,7 @@ jobs:
       group: deploy-firebase-${{ inputs.firebase-environment }}-${{ inputs.github-environment }}
       cancel-in-progress: true
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: setup pnpm

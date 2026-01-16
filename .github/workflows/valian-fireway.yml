@@ -60,6 +60,7 @@ jobs:
         env:
           GCLOUD_PROJECT: ${{ inputs.gcp-project-id }}
           GCP_PROJECT: ${{ inputs.gcp-project-id }}
+          GOOGLE_CLOUD_PROJECT: ${{ inputs.gcp-project-id }}
         run: npx @valian/fireway migrate ${{ inputs.dry-run && '--dryRun' || '' }}
         working-directory: ${{ inputs.working-directory }}
 

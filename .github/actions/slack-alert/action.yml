@@ -87,7 +87,7 @@ runs:
 
     - name: Alert on Slack
       id: slack
-      uses: slackapi/slack-github-action@v3.0.1
+      uses: slackapi/slack-github-action@v3.0.2
       with:
         errors: true
         method: chat.postMessage

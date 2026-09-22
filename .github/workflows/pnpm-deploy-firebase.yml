@@ -32,6 +32,11 @@ on:
         type: string
         required: false
         default: '.'
+      app-version:
+        description: The application version number exposed to the build steps as APP_VERSION
+        type: string
+        required: false
+        default: ''
 
 jobs:
   deploy:
@@ -69,6 +74,7 @@ jobs:
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           NODE_OPTIONS: --max_old_space_size=4096
+          APP_VERSION: ${{ inputs.app-version }}
 
       - name: notify slack of failure
         id: slack
